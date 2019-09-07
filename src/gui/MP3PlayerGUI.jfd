@@ -37,8 +37,8 @@ new FormModel {
 				} )
 			} )
 			add( new FormContainer( "javax.swing.JPanel", new FormLayoutManager( class org.jdesktop.layout.GroupLayout ) {
-				"$horizontalGroup": "par l {seq {par l {seq {space :::p, par l {comp scrollPane1::::0:x, seq l {comp buttonAddSong:::p:49:p, space :::p, comp buttonDeleteSong:::p::p, space ::32:x, comp separator1:::p:13:p, space :p:27:p, comp buttonSelectNext:::p:45:p, space u:::p, comp buttonSelectPrev:::p:45:p}, seq l {comp toggleButton1:::p:27:p, space :::p, comp sliderVolume:::::x}}}, seq l {space :p:25:p, comp buttonPrevSong:::p:40:p, space :::p, comp buttonPlaySong:::p:40:p, space :::p, comp buttonPauseSong:::p:40:p, space :::p, comp buttonStopSong:::p:40:p, space :::p, comp buttonNextSong:::p:40:p, space :0:60:x}}, space :::p}}"
-				"$verticalGroup": "par l {seq l {space :::p, par l:::p {comp buttonAddSong::l:::x, comp buttonDeleteSong::l:::p, comp buttonSelectNext::l:::x, comp buttonSelectPrev::l:::x, comp separator1:::p:24:p}, space s:::p, comp scrollPane1:::p:287:p, space s:::p, par t {comp toggleButton1:::p::p, comp sliderVolume:::p:23:p}, space u:::p, par l {comp buttonPrevSong:::p:35:p, comp buttonPlaySong:::p:35:p, comp buttonPauseSong:::p:35:p, comp buttonStopSong:::p:35:p, comp buttonNextSong:::p:35:p}, space :p:22:p}}"
+				"$horizontalGroup": "par l {seq {par l {seq {space :::p, par l {comp scrollPane1::::0:x, seq l {comp buttonAddSong:::p:49:p, space :::p, comp buttonDeleteSong:::p::p, space ::32:x, comp separator1:::p:13:p, space :p:27:p, comp buttonSelectNext:::p:45:p, space u:::p, comp buttonSelectPrev:::p:45:p}, seq l {comp toggleButton:::p:27:p, space :::p, comp sliderVolume:::::x}}}, seq l {space :p:25:p, comp buttonPrevSong:::p:40:p, space :::p, comp buttonPlaySong:::p:40:p, space :::p, comp buttonPauseSong:::p:40:p, space :::p, comp buttonStopSong:::p:40:p, space :::p, comp buttonNextSong:::p:40:p, space :0:60:x}}, space :::p}}"
+				"$verticalGroup": "par l {seq l {space :::p, par l:::p {comp buttonAddSong::l:::x, comp buttonDeleteSong::l:::p, comp buttonSelectNext::l:::x, comp buttonSelectPrev::l:::x, comp separator1:::p:24:p}, space s:::p, comp scrollPane1:::p:287:p, space s:::p, par t {comp toggleButton:::p::p, comp sliderVolume:::p:23:p}, space u:::p, par l {comp buttonPrevSong:::p:35:p, comp buttonPlaySong:::p:35:p, comp buttonPauseSong:::p:35:p, comp buttonStopSong:::p:35:p, comp buttonNextSong:::p:35:p}, space :p:22:p}}"
 			} ) {
 				name: "panelMain"
 				"border": new javax.swing.border.TitledBorder( "" )
@@ -47,6 +47,7 @@ new FormModel {
 					add( new FormComponent( "javax.swing.JList" ) {
 						name: "listPlayList"
 						"toolTipText": "List of songs"
+						addEvent( new FormEvent( "java.awt.event.MouseListener", "mouseClicked", "listPlayListMouseClicked", true ) )
 					} )
 				} )
 				add( new FormComponent( "javax.swing.JButton" ) {
@@ -86,18 +87,25 @@ new FormModel {
 					"orientation": 1
 				} )
 				add( new FormComponent( "javax.swing.JToggleButton" ) {
-					name: "toggleButton1"
+					name: "toggleButton"
 					"selectedIcon": new com.jformdesigner.model.SwingIcon( 0, "/images/mute.png" )
 					"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/speaker.png" )
 					"toolTipText": "Off sound"
+					addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "toggleButtonActionPerformed", true ) )
 				} )
 				add( new FormComponent( "javax.swing.JSlider" ) {
 					name: "sliderVolume"
 					"value": 0
+					"maximum": 200
+					"minorTickSpacing": 5
+					"snapToTicks": true
+					"toolTipText": "Change volume"
+					addEvent( new FormEvent( "javax.swing.event.ChangeListener", "stateChanged", "sliderVolumeStateChanged", true ) )
 				} )
 				add( new FormComponent( "javax.swing.JButton" ) {
 					name: "buttonPrevSong"
 					"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/prev-icon.png" )
+					addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "buttonPrevSongActionPerformed", true ) )
 				} )
 				add( new FormComponent( "javax.swing.JButton" ) {
 					name: "buttonPlaySong"
@@ -107,14 +115,17 @@ new FormModel {
 				add( new FormComponent( "javax.swing.JButton" ) {
 					name: "buttonPauseSong"
 					"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/Pause-icon.png" )
+					addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "buttonPauseSongActionPerformed", true ) )
 				} )
 				add( new FormComponent( "javax.swing.JButton" ) {
 					name: "buttonStopSong"
 					"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/stop-red-icon.png" )
+					addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "buttonStopSongActionPerformed", true ) )
 				} )
 				add( new FormComponent( "javax.swing.JButton" ) {
 					name: "buttonNextSong"
 					"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/next-icon.png" )
+					addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "buttonNextSongActionPerformed", true ) )
 				} )
 			} )
 			menuBar: new FormContainer( "javax.swing.JMenuBar", new FormLayoutManager( class javax.swing.JMenuBar ) ) {
