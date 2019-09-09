@@ -5,7 +5,7 @@ new FormModel {
 	root: new FormRoot {
 		add( new FormWindow( "javax.swing.JFrame", new FormLayoutManager( class org.jdesktop.layout.GroupLayout ) {
 			"$horizontalGroup": "par l {seq {space :::p, par l {comp panelSearch:::::x, comp panelMain:::::x}, space :::p}}"
-			"$verticalGroup": "par l {seq l {space :p:5:p, comp panelSearch:::p::p, space :::p, comp panelMain:::p::p, space ::36:x}}"
+			"$verticalGroup": "par l {seq l {space :p:5:p, comp panelSearch:::p::p, space :::p, comp panelMain:::p:452:p, space ::34:x}}"
 		} ) {
 			name: "this"
 			"title": "MP3 player"
@@ -28,6 +28,7 @@ new FormModel {
 					"foreground": new com.jformdesigner.model.SwingColor( "Button.select" )
 					addEvent( new FormEvent( "java.awt.event.FocusListener", "focusGained", "textSearchFocusGained", true ) )
 					addEvent( new FormEvent( "java.awt.event.FocusListener", "focusLost", "textSearchFocusLost", true ) )
+					addEvent( new FormEvent( "java.awt.event.KeyListener", "keyPressed", "textSearchKeyPressed", true ) )
 				} )
 				add( new FormComponent( "javax.swing.JButton" ) {
 					name: "buttonSearch"
@@ -37,8 +38,8 @@ new FormModel {
 				} )
 			} )
 			add( new FormContainer( "javax.swing.JPanel", new FormLayoutManager( class org.jdesktop.layout.GroupLayout ) {
-				"$horizontalGroup": "par l {seq {par l {seq {space :::p, par l {comp scrollPane1::::0:x, seq l {comp buttonAddSong:::p:49:p, space :::p, comp buttonDeleteSong:::p::p, space ::32:x, comp separator1:::p:13:p, space :p:27:p, comp buttonSelectNext:::p:45:p, space u:::p, comp buttonSelectPrev:::p:45:p}, seq l {comp toggleButton:::p:27:p, space :::p, comp sliderVolume:::::x}}}, seq l {space :p:25:p, comp buttonPrevSong:::p:40:p, space :::p, comp buttonPlaySong:::p:40:p, space :::p, comp buttonPauseSong:::p:40:p, space :::p, comp buttonStopSong:::p:40:p, space :::p, comp buttonNextSong:::p:40:p, space :0:60:x}}, space :::p}}"
-				"$verticalGroup": "par l {seq l {space :::p, par l:::p {comp buttonAddSong::l:::x, comp buttonDeleteSong::l:::p, comp buttonSelectNext::l:::x, comp buttonSelectPrev::l:::x, comp separator1:::p:24:p}, space s:::p, comp scrollPane1:::p:287:p, space s:::p, par t {comp toggleButton:::p::p, comp sliderVolume:::p:23:p}, space u:::p, par l {comp buttonPrevSong:::p:35:p, comp buttonPlaySong:::p:35:p, comp buttonPauseSong:::p:35:p, comp buttonStopSong:::p:35:p, comp buttonNextSong:::p:35:p}, space :p:22:p}}"
+				"$horizontalGroup": "par l {seq {par l {seq {space :p:25:p, comp buttonPrevSong:::p:40:p, space :::p, comp buttonPlaySong:::p:40:p, space :::p, comp buttonPauseSong:::p:40:p, space :::p, comp buttonStopSong:::p:40:p, space :::p, comp buttonNextSong:::p:40:p, space :0:0:x}, seq l {space :::p, par l {comp sliderProgress::t:::x, comp scrollPane1::l::0:x, seq l {comp buttonAddSong:::p:49:p, space :::p, comp buttonDeleteSong:::p::p, space :::x, comp separator1:::p:13:p, space :p:27:p, comp buttonSelectNext:::p:45:p, space u:::p, comp buttonSelectPrev:::p:45:p}, seq l {comp toggleButton:::p:27:p, space :::p, comp sliderVolume:::::x}, comp labelSongName::l:::x}}}, space :::p}}"
+				"$verticalGroup": "par l {seq l {space :::p, par l:::p {comp buttonAddSong::l:::x, comp buttonDeleteSong::l:::p, comp buttonSelectNext::l:::x, comp buttonSelectPrev::l:::x, comp separator1:::p:24:p}, space s:::p, comp scrollPane1:::p:249:p, space :::p, comp labelSongName:::p::p, space :p:7:p, comp sliderProgress:::p::p, space :::p, par t {comp toggleButton:::p::p, comp sliderVolume:::p:23:p}, space u:::p, par l {comp buttonPrevSong:::p:35:p, comp buttonPlaySong:::p:35:p, comp buttonPauseSong:::p:35:p, comp buttonStopSong:::p:35:p, comp buttonNextSong:::p:35:p}, space :p:22:p}}"
 			} ) {
 				name: "panelMain"
 				"border": new javax.swing.border.TitledBorder( "" )
@@ -47,7 +48,9 @@ new FormModel {
 					add( new FormComponent( "javax.swing.JList" ) {
 						name: "listPlayList"
 						"toolTipText": "List of songs"
+						"componentPopupMenu": new FormReference( "popupPlaylist" )
 						addEvent( new FormEvent( "java.awt.event.MouseListener", "mouseClicked", "listPlayListMouseClicked", true ) )
+						addEvent( new FormEvent( "java.awt.event.KeyListener", "keyPressed", "listPlayListKeyPressed", true ) )
 					} )
 				} )
 				add( new FormComponent( "javax.swing.JButton" ) {
@@ -95,7 +98,7 @@ new FormModel {
 				} )
 				add( new FormComponent( "javax.swing.JSlider" ) {
 					name: "sliderVolume"
-					"value": 0
+					"value": 100
 					"maximum": 200
 					"minorTickSpacing": 5
 					"snapToTicks": true
@@ -126,6 +129,22 @@ new FormModel {
 					name: "buttonNextSong"
 					"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/next-icon.png" )
 					addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "buttonNextSongActionPerformed", true ) )
+				} )
+				add( new FormComponent( "javax.swing.JLabel" ) {
+					name: "labelSongName"
+					"text": "..."
+					"preferredSize": new java.awt.Dimension( 303, 22 )
+					"minimumSize": new java.awt.Dimension( 100, 22 )
+					"maximumSize": new java.awt.Dimension( 303, 22 )
+				} )
+				add( new FormComponent( "javax.swing.JSlider" ) {
+					name: "sliderProgress"
+					"value": 0
+					"maximum": 1000
+					"minorTickSpacing": 1
+					"snapToTicks": true
+					"toolTipText": "Change progress"
+					addEvent( new FormEvent( "javax.swing.event.ChangeListener", "stateChanged", "sliderProgressStateChanged", true ) )
 				} )
 			} )
 			menuBar: new FormContainer( "javax.swing.JMenuBar", new FormLayoutManager( class javax.swing.JMenuBar ) ) {
@@ -190,6 +209,73 @@ new FormModel {
 			"acceptAllFileFilterUsed": false
 		}, new FormLayoutConstraints( null ) {
 			"location": new java.awt.Point( 385, 65 )
+		} )
+		add( new FormContainer( "javax.swing.JPopupMenu", new FormLayoutManager( class javax.swing.JPopupMenu ) ) {
+			name: "popupPlaylist"
+			"preferredSize": new java.awt.Dimension( 149, 155 )
+			"maximumSize": new java.awt.Dimension( 1200, 240 )
+			"minimumSize": new java.awt.Dimension( 3, 11 )
+			add( new FormComponent( "javax.swing.JMenuItem" ) {
+				name: "popmenuAddSong"
+				"text": "Add song"
+				"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/plus_16.png" )
+				"preferredSize": new java.awt.Dimension( 147, 21 )
+				auxiliary() {
+					"JavaCodeGenerator.variableName": "popmenuAddSong"
+				}
+				addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "popmenuAddSongActionPerformed", true ) )
+			} )
+			add( new FormComponent( "javax.swing.JMenuItem" ) {
+				name: "popmenuDeleteSong"
+				"text": "Remove song"
+				"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/remove_icon.png" )
+				"preferredSize": new java.awt.Dimension( 147, 21 )
+				addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "popmenuDeleteSongActionPerformed", true ) )
+			} )
+			add( new FormComponent( "javax.swing.JPopupMenu$Separator" ) {
+				name: "separator2"
+			} )
+			add( new FormComponent( "javax.swing.JMenuItem" ) {
+				name: "popmenuOpenPlaylist"
+				"text": "Open playlist"
+				"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/open-icon.png" )
+				"preferredSize": new java.awt.Dimension( 147, 21 )
+				addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "popmenuOpenPlaylistActionPerformed", true ) )
+			} )
+			add( new FormComponent( "javax.swing.JMenuItem" ) {
+				name: "popMenuClearPlaylist"
+				"text": "Clean playlist"
+				"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/clear.png" )
+				"preferredSize": new java.awt.Dimension( 147, 21 )
+				addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "popMenuClearPlaylistActionPerformed", true ) )
+			} )
+			add( new FormComponent( "javax.swing.JPopupMenu$Separator" ) {
+				name: "separator3"
+			} )
+			add( new FormComponent( "javax.swing.JMenuItem" ) {
+				name: "popmenuPlay"
+				"text": "Play"
+				"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/Play.png" )
+				"preferredSize": new java.awt.Dimension( 147, 21 )
+				addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "popmenuPlayActionPerformed", true ) )
+			} )
+			add( new FormComponent( "javax.swing.JMenuItem" ) {
+				name: "popmenuStop"
+				"text": "Stop"
+				"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/stop-red-icon.png" )
+				"preferredSize": new java.awt.Dimension( 147, 21 )
+				addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "popmenuStopActionPerformed", true ) )
+			} )
+			add( new FormComponent( "javax.swing.JMenuItem" ) {
+				name: "popmenuPause"
+				"text": "Pause"
+				"icon": new com.jformdesigner.model.SwingIcon( 0, "/images/Pause-icon.png" )
+				"preferredSize": new java.awt.Dimension( 147, 21 )
+				addEvent( new FormEvent( "java.awt.event.ActionListener", "actionPerformed", "popmenuPauseActionPerformed", true ) )
+			} )
+		}, new FormLayoutConstraints( null ) {
+			"location": new java.awt.Point( 500, 460 )
+			"size": new java.awt.Dimension( 140, 165 )
 		} )
 	}
 }

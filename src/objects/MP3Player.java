@@ -3,6 +3,7 @@ package objects;
 
 import javazoom.jlgui.basicplayer.BasicPlayer;
 import javazoom.jlgui.basicplayer.BasicPlayerException;
+import javazoom.jlgui.basicplayer.BasicPlayerListener;
 
 import java.io.File;
 import java.util.logging.Level;
@@ -13,6 +14,10 @@ public class MP3Player {
     private String currentFileName;
     private double currentVolumeValue;
     private static Logger logger = Logger.getLogger(MP3Player.class.getName());
+
+    public MP3Player(BasicPlayerListener listener) {
+        player.addBasicPlayerListener(listener);
+    }
 
     public void play(String fileName) {
         try {
@@ -27,7 +32,8 @@ public class MP3Player {
             player.setGain(currentVolumeValue);
 
         } catch (BasicPlayerException e) {
-            logger.log(Level.SEVERE, null, e);
+
+            logger.log(Level.SEVERE, "__File name:" + fileName, e);
         }
     }
 
@@ -68,4 +74,12 @@ public class MP3Player {
     }
 
 
+    public void jump(long bytes) {
+        try {
+            player.seek(bytes);
+            player.setGain(currentVolumeValue);
+        } catch (BasicPlayerException e) {
+            logger.log(Level.SEVERE, null, e);
+        }
+    }
 }

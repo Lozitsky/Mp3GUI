@@ -1,6 +1,10 @@
 package gui;
 
 import javax.swing.event.*;
+
+import javazoom.jlgui.basicplayer.BasicController;
+import javazoom.jlgui.basicplayer.BasicPlayerEvent;
+import javazoom.jlgui.basicplayer.BasicPlayerListener;
 import objects.MP3;
 import objects.MP3Player;
 import utils.FileUtils;
@@ -12,6 +16,7 @@ import java.awt.event.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.*;
@@ -30,7 +35,7 @@ import static com.sun.org.apache.xml.internal.utils.LocaleUtility.EMPTY_STRING;
 /**
  * @author Kirilo
  */
-public class MP3PlayerGUI extends JFrame {
+public class MP3PlayerGUI extends JFrame implements BasicPlayerListener {
     private static final String MP3_FILE_DESCRIPTION = "mp3 files";
     private static final String MP3_FILE_EXTENSION = "mp3";
     private static final String PLAYLIST_FILE_EXTENSION = "pls";
@@ -40,10 +45,67 @@ public class MP3PlayerGUI extends JFrame {
     private DefaultListModel mp3ListModel = new DefaultListModel();
     private FileFilter mp3FileFilter = new MP3PlayerFileFilter(MP3_FILE_EXTENSION, MP3_FILE_DESCRIPTION);
     private FileFilter playlistFileFilter = new MP3PlayerFileFilter(PLAYLIST_FILE_EXTENSION, PLAYLIST_FILE_DESCRIPTION);
-    private MP3Player player = new MP3Player();
+    private MP3Player player = new MP3Player(this);
+    private long duration;
+    private int bytesLen;
+    private long secondsAmount;
+    private boolean movingFromJump;
+    private boolean moveAutomatic;
+    private double posValue;
 
     public MP3PlayerGUI() {
         initComponents();
+    }
+
+
+    @Override
+    public void opened(Object o, Map map) {
+        duration = Math.round(((Long) map.get("duration")).longValue() / 1000000);
+        bytesLen = Math.round(((Integer) map.get("mp3.length.bytes")).intValue());
+
+        Object title = map.get("title");
+        String stringTitle;
+        String songName = title != null && (stringTitle = title.toString().trim()).length() > 0 ? stringTitle : FileUtils.getFileNameWithoutExtension(new File(o.toString()).getName());
+        if (songName.length() > 30) {
+            songName = songName.substring(0, 30) + "...";
+        }
+        labelSongName.setText(songName);
+    }
+
+    @Override
+    public void progress(int bytesRead, long microseconds, byte[] bytes, Map map) {
+        float progress = -1.0f;
+        if ((bytesRead > 0) && (duration > 0)) {
+            progress = (float) bytesRead / bytesLen;
+        }
+        secondsAmount = (long) (duration * progress);
+        if (duration != 0) {
+            if (!movingFromJump) {
+                sliderProgress.setValue(Math.round(secondsAmount * 1000 / duration));
+            }
+        }
+    }
+
+    @Override
+    public void stateUpdated(BasicPlayerEvent basicPlayerEvent) {
+        int code = basicPlayerEvent.getCode();
+        switch (code) {
+            case BasicPlayerEvent.PLAYING:
+                movingFromJump = false;
+                break;
+            case BasicPlayerEvent.SEEKING:
+                movingFromJump = true;
+                break;
+            case BasicPlayerEvent.EOM:
+                if (selectNextSong()) {
+                    playFile();
+                }
+        }
+    }
+
+    @Override
+    public void setController(BasicController basicController) {
+
     }
 
     private void menuSkin1ActionPerformed(ActionEvent e) {
@@ -62,6 +124,10 @@ public class MP3PlayerGUI extends JFrame {
             for (File selectedFile : selectedFiles) {
                 MP3 mp3 = new MP3(selectedFile.getName(), selectedFile.getPath());
                 mp3ListModel.addElement(mp3);
+                // don't add if list contains this song
+                /*if (!mp3ListModel.contains(mp3)) {
+                    mp3ListModel.addElement(mp3);
+                }*/
             }
             listPlayList.setModel(mp3ListModel);
         }
@@ -82,22 +148,38 @@ public class MP3PlayerGUI extends JFrame {
     }
 
     private void buttonSelectPrevActionPerformed(ActionEvent e) {
+        selectPrevSong();
+    }
+
+    private boolean selectPrevSong() {
         int prevIndex = listPlayList.getSelectedIndex() - 1;
         logger.log(Level.SEVERE, "PrevINDEX: " + prevIndex);
-        if (prevIndex >= 0) {
+        boolean isPrevIndex = prevIndex >= 0;
+        if (isPrevIndex) {
             listPlayList.setSelectedIndex(prevIndex);
         }
+        return isPrevIndex;
     }
 
     private void buttonSelectNextActionPerformed(ActionEvent e) {
+        selectNextSong();
+    }
+
+    private boolean selectNextSong() {
         int nextIndex = listPlayList.getSelectedIndex() + 1;
         logger.log(Level.SEVERE, "NextINDEX: " + nextIndex);
-        if (nextIndex < listPlayList.getModel().getSize()) {
+        boolean isNextIndex = nextIndex < listPlayList.getModel().getSize();
+        if (isNextIndex) {
             listPlayList.setSelectedIndex(nextIndex);
         }
+        return isNextIndex;
     }
 
     private void buttonPlaySongActionPerformed(ActionEvent e) {
+        playFile();
+    }
+
+    private void playFile() {
         int[] selectedIndices = listPlayList.getSelectedIndices();
         if (selectedIndices.length > 0) {
             Object mp3 = mp3ListModel.getElementAt(selectedIndices[0]);
@@ -147,6 +229,10 @@ public class MP3PlayerGUI extends JFrame {
     }
 
     private void buttonSearchActionPerformed(ActionEvent e) {
+        searchSong();
+    }
+
+    private void searchSong() {
         String searchText = textSearch.getText();
         if (searchText == null || searchText.trim().equals(EMPTY_STRING)) {
             return;
@@ -167,8 +253,8 @@ public class MP3PlayerGUI extends JFrame {
             return;
         }
 //        int[] ints = mp3IndexesFound.stream().mapToInt(value -> value).toArray();
-        int[] ints = mp3IndexesFound.stream().mapToInt(Integer::intValue).toArray();
-        listPlayList.setSelectedIndices(ints);
+        int[] indexes = mp3IndexesFound.stream().mapToInt(Integer::intValue).toArray();
+        listPlayList.setSelectedIndices(indexes);
     }
 
     private void textSearchFocusGained(FocusEvent e) {
@@ -202,14 +288,7 @@ public class MP3PlayerGUI extends JFrame {
 
     private void listPlayListMouseClicked(MouseEvent e) {
         if (e.getModifiers() == InputEvent.BUTTON1_MASK && e.getClickCount() == 2) {
-            int[] selectedIndices = listPlayList.getSelectedIndices();
-            if (selectedIndices.length > 0) {
-                Object mp3 = mp3ListModel.getElementAt(selectedIndices[0]);
-                if (mp3 instanceof MP3) {
-                    player.play(((MP3) mp3).getPath());
-                    player.setVolume(sliderVolume.getValue(), sliderVolume.getMaximum());
-                }
-            }
+            playFile();
         }
     }
 
@@ -225,13 +304,85 @@ public class MP3PlayerGUI extends JFrame {
     }
 
     private void buttonNextSongActionPerformed(ActionEvent e) {
-        buttonSelectNextActionPerformed(e);
-        buttonPlaySongActionPerformed(e);
+        /*buttonSelectNextActionPerformed(e);
+        buttonPlaySongActionPerformed(e);*/
+        if (selectNextSong()) {
+            playFile();
+        }
     }
 
     private void buttonPrevSongActionPerformed(ActionEvent e) {
-        buttonSelectPrevActionPerformed(e);
+        /*buttonSelectPrevActionPerformed(e);
+        buttonPlaySongActionPerformed(e);*/
+        if (selectPrevSong()) {
+            playFile();
+        }
+    }
+
+    private void sliderProgressStateChanged(ChangeEvent e) {
+        if (!sliderProgress.getValueIsAdjusting()) {
+            if (moveAutomatic) {
+                moveAutomatic = false;
+                posValue = (float) sliderProgress.getValue() / 1000;
+                processSeek(posValue);
+            }
+        } else {
+                moveAutomatic = true;
+                movingFromJump = true;
+        }
+
+    }
+
+    private void processSeek(double bytes) {
+        try {
+            long skipBytes = Math.round(((Integer) bytesLen).intValue() * bytes);
+            player.jump(skipBytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            movingFromJump = false;
+        }
+    }
+
+    private void textSearchKeyPressed(KeyEvent e) {
+        int keyCode = e.getKeyCode();
+        if (keyCode == KeyEvent.VK_ENTER) {
+            searchSong();
+        }
+    }
+
+    private void popmenuAddSongActionPerformed(ActionEvent e) {
+        buttonAddSongActionPerformed(e);
+    }
+
+    private void popmenuDeleteSongActionPerformed(ActionEvent e) {
+        buttonDeleteSongActionPerformed(e);
+    }
+
+    private void popmenuOpenPlaylistActionPerformed(ActionEvent e) {
+        menuOpenPlaylistActionPerformed(e);
+    }
+
+    private void popMenuClearPlaylistActionPerformed(ActionEvent e) {
+        buttonDeleteSongActionPerformed(e);
+    }
+
+    private void popmenuPlayActionPerformed(ActionEvent e) {
         buttonPlaySongActionPerformed(e);
+    }
+
+    private void popmenuStopActionPerformed(ActionEvent e) {
+        buttonStopSongActionPerformed(e);
+    }
+
+    private void popmenuPauseActionPerformed(ActionEvent e) {
+        buttonPauseSongActionPerformed(e);
+    }
+
+    private void listPlayListKeyPressed(KeyEvent e) {
+        int keyCode = e.getKeyCode();
+        if (keyCode == KeyEvent.VK_ENTER) {
+            playFile();
+        }
     }
 
     private void initComponents() {
@@ -264,7 +415,17 @@ public class MP3PlayerGUI extends JFrame {
         buttonPauseSong = new JButton();
         buttonStopSong = new JButton();
         buttonNextSong = new JButton();
+        labelSongName = new JLabel();
+        sliderProgress = new JSlider();
         fileChooser = new JFileChooser();
+        popupPlaylist = new JPopupMenu();
+        popmenuAddSong = new JMenuItem();
+        popmenuDeleteSong = new JMenuItem();
+        popmenuOpenPlaylist = new JMenuItem();
+        popMenuClearPlaylist = new JMenuItem();
+        popmenuPlay = new JMenuItem();
+        popmenuStop = new JMenuItem();
+        popmenuPause = new JMenuItem();
 
         //======== this ========
         setTitle("MP3 player");
@@ -335,14 +496,12 @@ public class MP3PlayerGUI extends JFrame {
         //======== panelSearch ========
         {
             panelSearch.setBorder(new TitledBorder(""));
-/*            panelSearch.setBorder(new javax.swing.border.CompoundBorder(new javax.swing.border.TitledBorder(
-            new javax.swing.border.EmptyBorder(0,0,0,0), "JF\u006frmD\u0065sig\u006eer \u0045val\u0075ati\u006fn"
-            ,javax.swing.border.TitledBorder.CENTER,javax.swing.border.TitledBorder.BOTTOM
-            ,new java.awt.Font("Dia\u006cog",java.awt.Font.BOLD,12)
-            ,java.awt.Color.red),panelSearch. getBorder()));panelSearch. addPropertyChangeListener(
-            new java.beans.PropertyChangeListener(){@Override public void propertyChange(java.beans.PropertyChangeEvent e
-            ){if("\u0062ord\u0065r".equals(e.getPropertyName()))throw new RuntimeException()
-            ;}});*/
+/*            panelSearch.setBorder (new javax. swing. border. CompoundBorder( new javax .swing .border .TitledBorder (new javax. swing.
+            border. EmptyBorder( 0, 0, 0, 0) , "JF\u006frmDesi\u0067ner Ev\u0061luatio\u006e", javax. swing. border. TitledBorder. CENTER
+            , javax. swing. border. TitledBorder. BOTTOM, new java .awt .Font ("Dialo\u0067" ,java .awt .Font
+            .BOLD ,12 ), java. awt. Color. red) ,panelSearch. getBorder( )) ); panelSearch. addPropertyChangeListener (
+            new java. beans. PropertyChangeListener( ){ @Override public void propertyChange (java .beans .PropertyChangeEvent e) {if ("borde\u0072"
+            .equals (e .getPropertyName () )) throw new RuntimeException( ); }} );*/
 
             //---- textSearch ----
             textSearch.setText("input name of song");
@@ -356,6 +515,12 @@ public class MP3PlayerGUI extends JFrame {
                 @Override
                 public void focusLost(FocusEvent e) {
                     textSearchFocusLost(e);
+                }
+            });
+            textSearch.addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    textSearchKeyPressed(e);
                 }
             });
 
@@ -397,10 +562,17 @@ public class MP3PlayerGUI extends JFrame {
 
                 //---- listPlayList ----
                 listPlayList.setToolTipText("List of songs");
+                listPlayList.setComponentPopupMenu(popupPlaylist);
                 listPlayList.addMouseListener(new MouseAdapter() {
                     @Override
                     public void mouseClicked(MouseEvent e) {
                         listPlayListMouseClicked(e);
+                    }
+                });
+                listPlayList.addKeyListener(new KeyAdapter() {
+                    @Override
+                    public void keyPressed(KeyEvent e) {
+                        listPlayListKeyPressed(e);
                     }
                 });
                 scrollPane1.setViewportView(listPlayList);
@@ -444,7 +616,7 @@ public class MP3PlayerGUI extends JFrame {
             toggleButton.addActionListener(e -> toggleButtonActionPerformed(e));
 
             //---- sliderVolume ----
-            sliderVolume.setValue(0);
+            sliderVolume.setValue(100);
             sliderVolume.setMaximum(200);
             sliderVolume.setMinorTickSpacing(5);
             sliderVolume.setSnapToTicks(true);
@@ -471,30 +643,26 @@ public class MP3PlayerGUI extends JFrame {
             buttonNextSong.setIcon(new ImageIcon(getClass().getResource("/images/next-icon.png")));
             buttonNextSong.addActionListener(e -> buttonNextSongActionPerformed(e));
 
+            //---- labelSongName ----
+            labelSongName.setText("...");
+            labelSongName.setPreferredSize(new Dimension(303, 22));
+            labelSongName.setMinimumSize(new Dimension(100, 22));
+            labelSongName.setMaximumSize(new Dimension(303, 22));
+
+            //---- sliderProgress ----
+            sliderProgress.setValue(0);
+            sliderProgress.setMaximum(1000);
+            sliderProgress.setMinorTickSpacing(1);
+            sliderProgress.setSnapToTicks(true);
+            sliderProgress.setToolTipText("Change progress");
+            sliderProgress.addChangeListener(e -> sliderProgressStateChanged(e));
+
             GroupLayout panelMainLayout = new GroupLayout(panelMain);
             panelMain.setLayout(panelMainLayout);
             panelMainLayout.setHorizontalGroup(
                 panelMainLayout.createParallelGroup()
                     .addGroup(panelMainLayout.createSequentialGroup()
                         .addGroup(panelMainLayout.createParallelGroup()
-                            .addGroup(panelMainLayout.createSequentialGroup()
-                                .addContainerGap()
-                                .addGroup(panelMainLayout.createParallelGroup()
-                                    .addComponent(scrollPane1, GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE)
-                                    .addGroup(panelMainLayout.createSequentialGroup()
-                                        .addComponent(buttonAddSong, GroupLayout.PREFERRED_SIZE, 49, GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(buttonDeleteSong)
-                                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED, 32, Short.MAX_VALUE)
-                                        .addComponent(separator1, GroupLayout.PREFERRED_SIZE, 13, GroupLayout.PREFERRED_SIZE)
-                                        .addGap(27, 27, 27)
-                                        .addComponent(buttonSelectNext, GroupLayout.PREFERRED_SIZE, 45, GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                                        .addComponent(buttonSelectPrev, GroupLayout.PREFERRED_SIZE, 45, GroupLayout.PREFERRED_SIZE))
-                                    .addGroup(panelMainLayout.createSequentialGroup()
-                                        .addComponent(toggleButton, GroupLayout.PREFERRED_SIZE, 27, GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(sliderVolume, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
                             .addGroup(panelMainLayout.createSequentialGroup()
                                 .addGap(25, 25, 25)
                                 .addComponent(buttonPrevSong, GroupLayout.PREFERRED_SIZE, 40, GroupLayout.PREFERRED_SIZE)
@@ -506,7 +674,27 @@ public class MP3PlayerGUI extends JFrame {
                                 .addComponent(buttonStopSong, GroupLayout.PREFERRED_SIZE, 40, GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(buttonNextSong, GroupLayout.PREFERRED_SIZE, 40, GroupLayout.PREFERRED_SIZE)
-                                .addGap(0, 60, Short.MAX_VALUE)))
+                                .addGap(0, 0, Short.MAX_VALUE))
+                            .addGroup(panelMainLayout.createSequentialGroup()
+                                .addContainerGap()
+                                .addGroup(panelMainLayout.createParallelGroup()
+                                    .addComponent(sliderProgress, GroupLayout.Alignment.TRAILING, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(scrollPane1, GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE)
+                                    .addGroup(panelMainLayout.createSequentialGroup()
+                                        .addComponent(buttonAddSong, GroupLayout.PREFERRED_SIZE, 49, GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(buttonDeleteSong)
+                                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                        .addComponent(separator1, GroupLayout.PREFERRED_SIZE, 13, GroupLayout.PREFERRED_SIZE)
+                                        .addGap(27, 27, 27)
+                                        .addComponent(buttonSelectNext, GroupLayout.PREFERRED_SIZE, 45, GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(buttonSelectPrev, GroupLayout.PREFERRED_SIZE, 45, GroupLayout.PREFERRED_SIZE))
+                                    .addGroup(panelMainLayout.createSequentialGroup()
+                                        .addComponent(toggleButton, GroupLayout.PREFERRED_SIZE, 27, GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(sliderVolume, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                    .addComponent(labelSongName, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
                         .addContainerGap())
             );
             panelMainLayout.setVerticalGroup(
@@ -520,8 +708,12 @@ public class MP3PlayerGUI extends JFrame {
                             .addComponent(buttonSelectPrev, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(separator1, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE))
                         .addGap(18, 18, 18)
-                        .addComponent(scrollPane1, GroupLayout.PREFERRED_SIZE, 287, GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
+                        .addComponent(scrollPane1, GroupLayout.PREFERRED_SIZE, 249, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(labelSongName, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addGap(7, 7, 7)
+                        .addComponent(sliderProgress, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(panelMainLayout.createParallelGroup(GroupLayout.Alignment.TRAILING)
                             .addComponent(toggleButton)
                             .addComponent(sliderVolume, GroupLayout.PREFERRED_SIZE, 23, GroupLayout.PREFERRED_SIZE))
@@ -553,8 +745,8 @@ public class MP3PlayerGUI extends JFrame {
                     .addGap(5, 5, 5)
                     .addComponent(panelSearch, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
                     .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                    .addComponent(panelMain, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                    .addContainerGap(36, Short.MAX_VALUE))
+                    .addComponent(panelMain, GroupLayout.PREFERRED_SIZE, 452, GroupLayout.PREFERRED_SIZE)
+                    .addContainerGap(34, Short.MAX_VALUE))
         );
         setSize(345, 595);
         setLocationRelativeTo(null);
@@ -562,6 +754,64 @@ public class MP3PlayerGUI extends JFrame {
         //---- fileChooser ----
         fileChooser.setMultiSelectionEnabled(true);
         fileChooser.setAcceptAllFileFilterUsed(false);
+
+        //======== popupPlaylist ========
+        {
+            popupPlaylist.setPreferredSize(new Dimension(149, 155));
+            popupPlaylist.setMaximumSize(new Dimension(1200, 240));
+            popupPlaylist.setMinimumSize(new Dimension(3, 11));
+
+            //---- popmenuAddSong ----
+            popmenuAddSong.setText("Add song");
+            popmenuAddSong.setIcon(new ImageIcon(getClass().getResource("/images/plus_16.png")));
+            popmenuAddSong.setPreferredSize(new Dimension(147, 21));
+            popmenuAddSong.addActionListener(e -> popmenuAddSongActionPerformed(e));
+            popupPlaylist.add(popmenuAddSong);
+
+            //---- popmenuDeleteSong ----
+            popmenuDeleteSong.setText("Remove song");
+            popmenuDeleteSong.setIcon(new ImageIcon(getClass().getResource("/images/remove_icon.png")));
+            popmenuDeleteSong.setPreferredSize(new Dimension(147, 21));
+            popmenuDeleteSong.addActionListener(e -> popmenuDeleteSongActionPerformed(e));
+            popupPlaylist.add(popmenuDeleteSong);
+            popupPlaylist.addSeparator();
+
+            //---- popmenuOpenPlaylist ----
+            popmenuOpenPlaylist.setText("Open playlist");
+            popmenuOpenPlaylist.setIcon(new ImageIcon(getClass().getResource("/images/open-icon.png")));
+            popmenuOpenPlaylist.setPreferredSize(new Dimension(147, 21));
+            popmenuOpenPlaylist.addActionListener(e -> popmenuOpenPlaylistActionPerformed(e));
+            popupPlaylist.add(popmenuOpenPlaylist);
+
+            //---- popMenuClearPlaylist ----
+            popMenuClearPlaylist.setText("Clean playlist");
+            popMenuClearPlaylist.setIcon(new ImageIcon(getClass().getResource("/images/clear.png")));
+            popMenuClearPlaylist.setPreferredSize(new Dimension(147, 21));
+            popMenuClearPlaylist.addActionListener(e -> popMenuClearPlaylistActionPerformed(e));
+            popupPlaylist.add(popMenuClearPlaylist);
+            popupPlaylist.addSeparator();
+
+            //---- popmenuPlay ----
+            popmenuPlay.setText("Play");
+            popmenuPlay.setIcon(new ImageIcon(getClass().getResource("/images/Play.png")));
+            popmenuPlay.setPreferredSize(new Dimension(147, 21));
+            popmenuPlay.addActionListener(e -> popmenuPlayActionPerformed(e));
+            popupPlaylist.add(popmenuPlay);
+
+            //---- popmenuStop ----
+            popmenuStop.setText("Stop");
+            popmenuStop.setIcon(new ImageIcon(getClass().getResource("/images/stop-red-icon.png")));
+            popmenuStop.setPreferredSize(new Dimension(147, 21));
+            popmenuStop.addActionListener(e -> popmenuStopActionPerformed(e));
+            popupPlaylist.add(popmenuStop);
+
+            //---- popmenuPause ----
+            popmenuPause.setText("Pause");
+            popmenuPause.setIcon(new ImageIcon(getClass().getResource("/images/Pause-icon.png")));
+            popmenuPause.setPreferredSize(new Dimension(147, 21));
+            popmenuPause.addActionListener(e -> popmenuPauseActionPerformed(e));
+            popupPlaylist.add(popmenuPause);
+        }
         // JFormDesigner - End of component initialization  //GEN-END:initComponents
     }
 
@@ -594,6 +844,16 @@ public class MP3PlayerGUI extends JFrame {
     private JButton buttonPauseSong;
     private JButton buttonStopSong;
     private JButton buttonNextSong;
+    private JLabel labelSongName;
+    private JSlider sliderProgress;
     private JFileChooser fileChooser;
+    private JPopupMenu popupPlaylist;
+    private JMenuItem popmenuAddSong;
+    private JMenuItem popmenuDeleteSong;
+    private JMenuItem popmenuOpenPlaylist;
+    private JMenuItem popMenuClearPlaylist;
+    private JMenuItem popmenuPlay;
+    private JMenuItem popmenuStop;
+    private JMenuItem popmenuPause;
     // JFormDesigner - End of variables declaration  //GEN-END:variables
 }
